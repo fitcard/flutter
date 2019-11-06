@@ -9,6 +9,7 @@ import '../base/common.dart';
 import '../base/context.dart';
 import '../base/file_system.dart';
 import '../base/io.dart';
+import '../base/terminal.dart';
 import '../base/utils.dart';
 import '../cache.dart';
 import '../commands/daemon.dart';
@@ -274,13 +275,13 @@ class AttachCommand extends FlutterCommand {
       flutterDevice.observatoryUris = <Uri>[ observatoryUri ];
       final List<FlutterDevice> flutterDevices =  <FlutterDevice>[flutterDevice];
       final DebuggingOptions debuggingOptions = DebuggingOptions.enabled(getBuildInfo());
+      terminal.usesTerminalUi = daemon == null;
       final ResidentRunner runner = useHot ?
           hotRunnerFactory.build(
             flutterDevices,
             target: targetFile,
             debuggingOptions: debuggingOptions,
             packagesFilePath: globalResults['packages'],
-            usesTerminalUi: daemon == null,
             projectRootPath: argResults['project-root'],
             dillOutputPath: argResults['output-dill'],
             ipv6: usesIpv6,
@@ -345,7 +346,6 @@ class HotRunnerFactory {
     List<FlutterDevice> devices, {
     String target,
     DebuggingOptions debuggingOptions,
-    bool usesTerminalUi = true,
     bool benchmarkMode = false,
     File applicationBinary,
     bool hostIsIde = false,
@@ -359,7 +359,6 @@ class HotRunnerFactory {
     devices,
     target: target,
     debuggingOptions: debuggingOptions,
-    usesTerminalUi: usesTerminalUi,
     benchmarkMode: benchmarkMode,
     applicationBinary: applicationBinary,
     hostIsIde: hostIsIde,

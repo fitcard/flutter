@@ -65,10 +65,11 @@ class CocoaPods {
   String get cocoaPodsMinimumVersion => '1.6.0';
   String get cocoaPodsRecommendedVersion => '1.6.0';
 
-  Future<bool> get isInstalled => exitsHappyAsync(<String>['which', 'pod']);
+  Future<bool> get isInstalled =>
+      processUtils.exitsHappy(<String>['which', 'pod']);
 
   Future<String> get cocoaPodsVersionText {
-    _versionText ??= runAsync(<String>['pod', '--version']).then<String>((RunResult result) {
+    _versionText ??= processUtils.run(<String>['pod', '--version']).then<String>((RunResult result) {
       return result.exitCode == 0 ? result.stdout.trim() : null;
     }, onError: (dynamic _) => null);
     return _versionText;
@@ -125,7 +126,7 @@ class CocoaPods {
     bool isSwift = false,
     bool dependenciesChanged = true,
   }) async {
-    if (!(await xcodeProject.podfile.exists())) {
+    if (!xcodeProject.podfile.existsSync()) {
       throwToolExit('Podfile missing');
     }
     if (await _checkPodCondition()) {
@@ -198,7 +199,7 @@ class CocoaPods {
   /// Ensures the given Xcode-based sub-project of a parent Flutter project
   /// contains a suitable `Podfile` and that its `Flutter/Xxx.xcconfig` files
   /// include pods configuration.
-  void setupPodfile(XcodeBasedProject xcodeProject) {
+  Future<void> setupPodfile(XcodeBasedProject xcodeProject) async {
     if (!xcodeProjectInterpreter.isInstalled) {
       // Don't do anything for iOS when host platform doesn't support it.
       return;
@@ -208,27 +209,29 @@ class CocoaPods {
       return;
     }
     final File podfile = xcodeProject.podfile;
-    if (!podfile.existsSync()) {
-      String podfileTemplateName;
-      if (xcodeProject is MacOSProject) {
-        podfileTemplateName = 'Podfile-macos';
-      } else {
-        final bool isSwift = xcodeProjectInterpreter.getBuildSettings(
-          runnerProject.path,
-          'Runner',
-        ).containsKey('SWIFT_VERSION');
-        podfileTemplateName = isSwift ? 'Podfile-ios-swift' : 'Podfile-ios-objc';
-      }
-      final File podfileTemplate = fs.file(fs.path.join(
-        Cache.flutterRoot,
-        'packages',
-        'flutter_tools',
-        'templates',
-        'cocoapods',
-        podfileTemplateName,
-      ));
-      podfileTemplate.copySync(podfile.path);
+    if (podfile.existsSync()) {
+      addPodsDependencyToFlutterXcconfig(xcodeProject);
+      return;
     }
+    String podfileTemplateName;
+    if (xcodeProject is MacOSProject) {
+      podfileTemplateName = 'Podfile-macos';
+    } else {
+      final bool isSwift = (await xcodeProjectInterpreter.getBuildSettingsAsync(
+        runnerProject.path,
+        'Runner',
+      )).containsKey('SWIFT_VERSION');
+      podfileTemplateName = isSwift ? 'Podfile-ios-swift' : 'Podfile-ios-objc';
+    }
+    final File podfileTemplate = fs.file(fs.path.join(
+      Cache.flutterRoot,
+      'packages',
+      'flutter_tools',
+      'templates',
+      'cocoapods',
+      podfileTemplateName,
+    ));
+    podfileTemplate.copySync(podfile.path);
     addPodsDependencyToFlutterXcconfig(xcodeProject);
   }
 
